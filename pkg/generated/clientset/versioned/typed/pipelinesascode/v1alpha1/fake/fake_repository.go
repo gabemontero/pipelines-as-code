@@ -77,6 +77,7 @@ func (c *FakeRepositories) List(ctx context.Context, opts v1.ListOptions) (resul
 func (c *FakeRepositories) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(repositoriesResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a repository and creates it.  Returns the server's representation of the repository, and an error, if there is any.
@@ -116,7 +117,7 @@ func (c *FakeRepositories) UpdateStatus(ctx context.Context, repository *v1alpha
 // Delete takes name of the repository and deletes it. Returns an error if one occurs.
 func (c *FakeRepositories) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(repositoriesResource, c.ns, name), &v1alpha1.Repository{})
+		Invokes(testing.NewDeleteActionWithOptions(repositoriesResource, c.ns, name, opts), &v1alpha1.Repository{})
 
 	return err
 }

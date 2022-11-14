@@ -74,7 +74,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // PipelinesascodeV1alpha1 retrieves the PipelinesascodeV1alpha1Client
 func (c *Clientset) PipelinesascodeV1alpha1() pipelinesascodev1alpha1.PipelinesascodeV1alpha1Interface {
