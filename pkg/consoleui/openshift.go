@@ -35,6 +35,7 @@ func (o *OpenshiftConsole) TaskLogURL(ns, pr, task string) string {
 	return fmt.Sprintf(openShiftPipelineTaskLogURL, o.DetailURL(ns, pr), task)
 }
 
+//TODO what do we do with this with KCP ??  There is a plan for KCP exposing openshift routes but we are talking the console here
 // UI use dynamic client to get the route of the openshift
 // console where we can point to.
 func (o *OpenshiftConsole) UI(ctx context.Context, kdyn dynamic.Interface) error {

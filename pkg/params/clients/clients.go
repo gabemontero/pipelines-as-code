@@ -16,6 +16,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	kcptripper "github.com/kcp-dev/apimachinery/pkg/client"
+	"k8s.io/klog/v2"
 )
 
 type Clients struct {
@@ -53,7 +56,11 @@ func (c *Clients) GetURL(ctx context.Context, url string) ([]byte, error) {
 
 // Set kube client based on config
 func (c *Clients) kubeClient(config *rest.Config) (kubernetes.Interface, error) {
-	k8scs, err := kubernetes.NewForConfig(config)
+	httpclient, err := ClusterAwareHTTPClient(config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create kcp http client")
+	}
+	k8scs, err := kubernetes.NewForConfigAndClient(config, httpclient)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create k8s client from config")
 	}
@@ -62,7 +69,11 @@ func (c *Clients) kubeClient(config *rest.Config) (kubernetes.Interface, error) 
 }
 
 func (c *Clients) dynamicClient(config *rest.Config) (dynamic.Interface, error) {
-	dynamicClient, err := dynamic.NewForConfig(config)
+	httpclient, err := ClusterAwareHTTPClient(config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create kcp http client")
+	}
+	dynamicClient, err := dynamic.NewForConfigAndClient(config, httpclient)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create dynamic client from config")
 	}
@@ -94,7 +105,11 @@ func (c *Clients) kubeConfig(info *info.Info) (*rest.Config, error) {
 }
 
 func (c *Clients) tektonClient(config *rest.Config) (versioned2.Interface, error) {
-	cs, err := versioned2.NewForConfig(config)
+	httpclient, err := ClusterAwareHTTPClient(config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create kcp http client")
+	}
+	cs, err := versioned2.NewForConfigAndClient(config, httpclient)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +117,11 @@ func (c *Clients) tektonClient(config *rest.Config) (versioned2.Interface, error
 }
 
 func (c *Clients) pacClient(config *rest.Config) (versioned.Interface, error) {
-	cs, err := versioned.NewForConfig(config)
+	httpclient, err := ClusterAwareHTTPClient(config)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create kcp http client")
+	}
+	cs, err := versioned.NewForConfigAndClient(config, httpclient)
 	if err != nil {
 		return nil, err
 	}
@@ -154,4 +173,17 @@ func (c *Clients) NewClients(ctx context.Context, info *info.Info) error {
 	c.ConsoleUI = c.consoleUIClient(ctx, c.Dynamic, info)
 	c.ClientInitialized = true
 	return nil
+}
+
+// ClusterAwareHTTPClient returns an http.Client with a cluster aware round tripper.
+func ClusterAwareHTTPClient(config *rest.Config) (*http.Client, error) {
+	httpClient, err := rest.HTTPClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+
+	//TODO could add kcp check to bypass this in non-kcp cluster, though it seems to have no ill effect in that case
+	httpClient.Transport = kcptripper.NewClusterRoundTripper(httpClient.Transport)
+	klog.Infof("GGM kcp round tripper %#v", httpClient.Transport)
+	return httpClient, nil
 }
