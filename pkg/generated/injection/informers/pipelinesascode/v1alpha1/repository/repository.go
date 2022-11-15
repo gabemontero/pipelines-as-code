@@ -20,6 +20,7 @@ package repository
 
 import (
 	context "context"
+	"k8s.io/klog/v2"
 
 	apispipelinesascodev1alpha1 "github.com/openshift-pipelines/pipelines-as-code/pkg/apis/pipelinesascode/v1alpha1"
 	versioned "github.com/openshift-pipelines/pipelines-as-code/pkg/generated/clientset/versioned"
@@ -50,12 +51,14 @@ func withInformer(ctx context.Context) (context.Context, controller.Informer) {
 }
 
 func withDynamicInformer(ctx context.Context) context.Context {
+	// this gets into pkg/generated/injection/client
 	inf := &wrapper{client: client.Get(ctx), resourceVersion: injection.GetResourceVersion(ctx)}
 	return context.WithValue(ctx, Key{}, inf)
 }
 
 // Get extracts the typed informer from the context.
 func Get(ctx context.Context) v1alpha1.RepositoryInformer {
+	klog.Infof("GGM pac repo api injection getter called (expect this one to be called based on caller search)")
 	untyped := ctx.Value(Key{})
 	if untyped == nil {
 		logging.FromContext(ctx).Panic(

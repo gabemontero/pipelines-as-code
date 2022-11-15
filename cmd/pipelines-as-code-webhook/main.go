@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 
 	validation_webhook "github.com/openshift-pipelines/pipelines-as-code/pkg/webhook"
@@ -12,10 +13,20 @@ import (
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/webhook"
 	"knative.dev/pkg/webhook/certificates"
+
+	"github.com/openshift-pipelines/pipelines-as-code/pkg/params"
 )
 
 func main() {
 	ctx := signals.NewContext()
+	// set up client/informer overrides for kcp
+	run := params.New()
+	err := run.Clients.NewClients(ctx, &run.Info)
+	if err != nil {
+		log.Fatal("failed to init clients : ", err)
+	}
+	run.Informers.Clients = run.Clients
+	run.Informers.NewInformers(ctx)
 
 	serviceName := os.Getenv("WEBHOOK_SERVICE_NAME")
 	if serviceName == "" {

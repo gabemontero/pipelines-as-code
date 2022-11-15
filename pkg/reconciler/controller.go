@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"path/filepath"
+	"runtime"
 
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/apis/pipelinesascode"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/events"
@@ -18,10 +19,15 @@ import (
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/kmeta"
+
+	"k8s.io/klog/v2"
 )
 
 func NewController() func(context.Context, configmap.Watcher) *controller.Impl {
 	return func(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
+		buf := make([]byte, 5000)
+		ss := runtime.Stack(buf, false)
+		klog.Infof("GGM NewController.func stack %s", string(buf[0:ss]))
 		run := params.New()
 		err := run.Clients.NewClients(ctx, &run.Info)
 		if err != nil {
@@ -41,7 +47,10 @@ func NewController() func(context.Context, configmap.Watcher) *controller.Impl {
 
 		run.Info.Pac.LogURL = run.Clients.ConsoleUI.URL()
 
+		//NOTE this should get our pipelinerun informer from pkg/params/informers since we overwrote the default
 		pipelineRunInformer := pipelineruninformer.Get(ctx)
+		klog.Infof("GGM got pr informer %#v", pipelineRunInformer)
+
 
 		metrics, err := metrics.NewRecorder()
 		if err != nil {
@@ -56,6 +65,7 @@ func NewController() func(context.Context, configmap.Watcher) *controller.Impl {
 			metrics:           metrics,
 			eventEmitter:      events.NewEventEmitter(run.Clients.Kube, run.Clients.Log),
 		}
+		//NOTE this should get our pipelinerun informer from pkg/params/informers since we overwrote the default
 		impl := pipelinerunreconciler.NewImpl(ctx, c, ctrlOpts())
 
 		if err := c.qm.InitQueues(ctx, run.Clients.Tekton, run.Clients.PipelineAsCode); err != nil {

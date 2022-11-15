@@ -20,6 +20,7 @@ package factory
 
 import (
 	context "context"
+	"k8s.io/klog/v2"
 
 	externalversions "github.com/openshift-pipelines/pipelines-as-code/pkg/generated/informers/externalversions"
 	client "github.com/openshift-pipelines/pipelines-as-code/pkg/generated/injection/client"
@@ -47,6 +48,7 @@ func withInformerFactory(ctx context.Context) context.Context {
 
 // Get extracts the InformerFactory from the context.
 func Get(ctx context.Context) externalversions.SharedInformerFactory {
+	klog.Infof("GGM pac informer factory injection getter called")
 	untyped := ctx.Value(Key{})
 	if untyped == nil {
 		logging.FromContext(ctx).Panic(

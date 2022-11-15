@@ -9,6 +9,7 @@ import (
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/consoleui"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/params/clients"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/params/info"
+	"github.com/openshift-pipelines/pipelines-as-code/pkg/params/informers"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/params/settings"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -20,6 +21,7 @@ const (
 
 type Run struct {
 	Clients clients.Clients
+	Informers informers.Informers
 	Info    info.Info
 }
 

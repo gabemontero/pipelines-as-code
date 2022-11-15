@@ -177,6 +177,7 @@ func (c *Clients) NewClients(ctx context.Context, info *info.Info) error {
 
 // ClusterAwareHTTPClient returns an http.Client with a cluster aware round tripper.
 func ClusterAwareHTTPClient(config *rest.Config) (*http.Client, error) {
+	//TODO do we want to set Clients.HTTP with this??
 	httpClient, err := rest.HTTPClientFor(config)
 	if err != nil {
 		return nil, err

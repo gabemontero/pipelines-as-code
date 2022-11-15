@@ -22,6 +22,9 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to init clients : ", err)
 	}
+	// set up informer overrides
+	run.Informers.Clients = run.Clients
+	run.Informers.NewInformers(ctx)
 
 	kinteract, err := kubeinteraction.NewKubernetesInteraction(run)
 	if err != nil {

@@ -23,6 +23,7 @@ import (
 	json "encoding/json"
 	errors "errors"
 	fmt "fmt"
+	"k8s.io/klog/v2"
 
 	v1alpha1 "github.com/openshift-pipelines/pipelines-as-code/pkg/apis/pipelinesascode/v1alpha1"
 	versioned "github.com/openshift-pipelines/pipelines-as-code/pkg/generated/clientset/versioned"
@@ -62,6 +63,7 @@ func withClientFromDynamic(ctx context.Context) context.Context {
 
 // Get extracts the versioned.Interface client from the context.
 func Get(ctx context.Context) versioned.Interface {
+	klog.Infof("GGM pac client injection getter called")
 	untyped := ctx.Value(Key{})
 	if untyped == nil {
 		if injection.GetConfig(ctx) == nil {

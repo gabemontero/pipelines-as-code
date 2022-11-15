@@ -7,8 +7,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/openshift-pipelines/pipelines-as-code/pkg/params"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/reconciler"
+
 	"knative.dev/pkg/injection/sharedmain"
+	"knative.dev/pkg/signals"
 )
 
 const globalProbesPort = "8080"
@@ -19,6 +22,16 @@ func main() {
 	if envProbePort != "" {
 		probesPort = envProbePort
 	}
+
+	// set up client/informer overrides for kcp
+	ctx := signals.NewContext()
+	run := params.New()
+	err := run.Clients.NewClients(ctx, &run.Info)
+	if err != nil {
+		log.Fatal("failed to init clients : ", err)
+	}
+	run.Informers.Clients = run.Clients
+	run.Informers.NewInformers(ctx)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/live", func(w http.ResponseWriter, r *http.Request) {
@@ -39,5 +52,5 @@ func main() {
 		log.Fatal(srv.ListenAndServe())
 	}()
 
-	sharedmain.Main("pac-watcher", reconciler.NewController())
+	sharedmain.MainWithContext(ctx, "pac-watcher", reconciler.NewController())
 }

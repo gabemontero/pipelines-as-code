@@ -24,6 +24,7 @@ func NewAdmissionController(
 	wc func(context.Context) context.Context,
 	disallowUnknownFields bool,
 ) *controller.Impl {
+	//TODO GGM trigger param baed overrides
 	client := kubeclient.Get(ctx)
 	vwhInformer := vwhinformer.Get(ctx)
 	secretInformer := secretinformer.Get(ctx)
