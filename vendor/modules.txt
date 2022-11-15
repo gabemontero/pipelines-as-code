@@ -252,7 +252,9 @@ github.com/juju/ansiterm/tabwriter
 github.com/kballard/go-shellquote
 # github.com/kcp-dev/apimachinery v0.0.0-20220922165458-607ac5e87531
 ## explicit; go 1.18
+github.com/kcp-dev/apimachinery/pkg/cache
 github.com/kcp-dev/apimachinery/pkg/client
+github.com/kcp-dev/apimachinery/third_party/informers
 # github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.3
 ## explicit; go 1.18
 github.com/kcp-dev/logicalcluster/v2
