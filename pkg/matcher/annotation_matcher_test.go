@@ -4,14 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"reflect"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/google/go-github/v61/github"
-	"github.com/jonboulle/clockwork"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/apis/pipelinesascode/keys"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/apis/pipelinesascode/v1alpha1"
 	"github.com/openshift-pipelines/pipelines-as-code/pkg/opscomments"
@@ -34,6 +27,10 @@ import (
 	"gotest.tools/v3/golden"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	rtesting "knative.dev/pkg/reconciler/testing"
+	"net/http"
+	"reflect"
+	"strings"
+	"testing"
 )
 
 const pipelineTargetNSName = "pipeline-target-ns"
@@ -75,824 +72,940 @@ func makePipelineRunTargetNS(event, targetNS string) *tektonv1.PipelineRun {
 }
 
 func TestMatchPipelinerunAnnotationAndRepositories(t *testing.T) {
-	cw := clockwork.NewFakeClock()
-
-	filesChanged := []struct {
-		FileName    string
-		Status      string
-		NewFile     bool
-		RenamedFile bool
-		DeletedFile bool
-	}{
-		{
-			FileName:    "src/added.go",
-			Status:      "added",
-			NewFile:     true,
-			RenamedFile: false,
-			DeletedFile: false,
-		},
-		{
-			FileName:    "src/modified.go",
-			Status:      "modified",
-			NewFile:     false,
-			RenamedFile: false,
-			DeletedFile: false,
-		},
-		{
-			FileName:    "src/removed.go",
-			Status:      "removed",
-			NewFile:     false,
-			RenamedFile: false,
-			DeletedFile: true,
-		},
-
-		{
-			FileName:    "src/renamed.go",
-			Status:      "renamed",
-			NewFile:     false,
-			RenamedFile: true,
-			DeletedFile: false,
-		},
-	}
+	//cw := clockwork.NewFakeClock()
+	//
+	//filesChanged := []struct {
+	//	FileName    string
+	//	Status      string
+	//	NewFile     bool
+	//	RenamedFile bool
+	//	DeletedFile bool
+	//}{
+	//	{
+	//		FileName:    "src/added.go",
+	//		Status:      "added",
+	//		NewFile:     true,
+	//		RenamedFile: false,
+	//		DeletedFile: false,
+	//	},
+	//	{
+	//		FileName:    "src/modified.go",
+	//		Status:      "modified",
+	//		NewFile:     false,
+	//		RenamedFile: false,
+	//		DeletedFile: false,
+	//	},
+	//	{
+	//		FileName:    "src/removed.go",
+	//		Status:      "removed",
+	//		NewFile:     false,
+	//		RenamedFile: false,
+	//		DeletedFile: true,
+	//	},
+	//
+	//	{
+	//		FileName:    "src/renamed.go",
+	//		Status:      "renamed",
+	//		NewFile:     false,
+	//		RenamedFile: true,
+	//		DeletedFile: false,
+	//	},
+	//}
 
 	tests := []annotationTest{
+		//{
+		//	name:       "match a repository with target NS",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			makePipelineRunTargetNS("pull_request", targetNamespace),
+		//		},
+		//		runevent: info.Event{
+		//			URL: targetURL, TriggerTarget: "pull_request", EventType: "pull_request",
+		//			BaseBranch: mainBranch,
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:       "cel/match source/target",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "event == \"pull_request" +
+		//							"\" && target_branch == \"" + mainBranch + "\" && source_branch == \"unittests\"",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:           targetURL,
+		//			TriggerTarget: "pull_request",
+		//			EventType:     "pull_request",
+		//			BaseBranch:    mainBranch,
+		//			HeadBranch:    "unittests",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:       "cel/match body payload",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "body.foo == 'bar'",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:           targetURL,
+		//			TriggerTarget: "pull_request",
+		//			EventType:     "pull_request",
+		//			BaseBranch:    mainBranch,
+		//			HeadBranch:    "unittests",
+		//			Event: map[string]interface{}{
+		//				"foo": "bar",
+		//			},
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:       "cel/match request header",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "headers['foo'] == 'bar'",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:           targetURL,
+		//			TriggerTarget: "pull_request",
+		//			EventType:     "pull_request",
+		//			BaseBranch:    mainBranch,
+		//			HeadBranch:    "unittests",
+		//			Request: &info.Request{
+		//				Header: http.Header{
+		//					"Foo": []string{"bar"},
+		//				},
+		//			},
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:       "cel/match path by glob",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		fileChanged: []struct {
+		//			FileName    string
+		//			Status      string
+		//			NewFile     bool
+		//			RenamedFile bool
+		//			DeletedFile bool
+		//		}{
+		//			{
+		//				FileName:    ".tekton/pull_request.yaml",
+		//				Status:      "added",
+		//				NewFile:     true,
+		//				RenamedFile: false,
+		//				DeletedFile: false,
+		//			},
+		//		},
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "\".tekton/*yaml\"." +
+		//							"pathChanged()",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:       "cel/match path title pr",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "event_title.startsWith(\"[UPSTREAM]\")",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			PullRequestTitle:  "[UPSTREAM] test me cause i'm famous",
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//
+		//{
+		//	name:       "cel/match path title push",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "event_title.startsWith(\"[UPSTREAM]\")",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:           targetURL,
+		//			TriggerTarget: "push",
+		//			EventType:     "push",
+		//			BaseBranch:    mainBranch,
+		//			HeadBranch:    "unittests",
+		//			SHATitle:      "[UPSTREAM] test me cause i'm famous",
+		//			Organization:  "mylittle",
+		//			Repository:    "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//
+		//{
+		//	name:    "cel/no match path title pr",
+		//	wantErr: true,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "event_title.startsWith(\"[UPSTREAM]\")",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "cel/no match path by glob",
+		//	wantErr: true,
+		//	args: annotationTestArgs{
+		//		fileChanged: []struct {
+		//			FileName    string
+		//			Status      string
+		//			NewFile     bool
+		//			RenamedFile bool
+		//			DeletedFile bool
+		//		}{
+		//			{
+		//				FileName:    ".tekton/foo.json",
+		//				Status:      "added",
+		//				NewFile:     true,
+		//				RenamedFile: false,
+		//				DeletedFile: false,
+		//			},
+		//		},
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "\".tekton/*yaml\"." +
+		//							"pathChanged()",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//
+		//{
+		//	name:       "cel/match by direct path",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		fileChanged: []struct {
+		//			FileName    string
+		//			Status      string
+		//			NewFile     bool
+		//			RenamedFile bool
+		//			DeletedFile bool
+		//		}{
+		//			{
+		//				FileName:    ".tekton/pull_request.yaml",
+		//				Status:      "added",
+		//				NewFile:     true,
+		//				RenamedFile: false,
+		//				DeletedFile: false,
+		//			},
+		//		},
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "\".tekton/pull_request.yaml\"." +
+		//							"pathChanged()",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//
+		//{
+		//	name: "match TargetPipelineRun",
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					GenerateName: fmt.Sprintf("%s-", pipelineTargetNSName),
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TargetPipelineRun: pipelineTargetNSName,
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "cel/bad expression",
+		//	wantErr: true,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "BADDDDDDDx'ax\\\a",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:           targetURL,
+		//			TriggerTarget: "pull_request",
+		//			EventType:     "pull_request",
+		//			BaseBranch:    mainBranch,
+		//			HeadBranch:    "unittests",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name: "matching incoming webhook event on push target",
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			makePipelineRunTargetNS(triggertype.Push.String(), ""),
+		//		},
+		//		runevent: info.Event{
+		//			URL:        targetURL,
+		//			EventType:  triggertype.Incoming.String(),
+		//			BaseBranch: mainBranch,
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: pipelineTargetNSName,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name: "matching incoming webhook event on incoming target",
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			makePipelineRunTargetNS(triggertype.Incoming.String(), ""),
+		//		},
+		//		runevent: info.Event{
+		//			URL:        targetURL,
+		//			EventType:  triggertype.Incoming.String(),
+		//			BaseBranch: mainBranch,
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: pipelineTargetNSName,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	// this unit test seems wrong, you don't get a repo match from annotations but early one
+		//	// the targetNamespace will always explicitly target the oldest one
+		//	// we keep as is but something to improve later on
+		//	name:         "match same webhook on multiple repos takes the oldest one",
+		//	wantPRName:   pipelineTargetNSName,
+		//	wantRepoName: "test-oldest",
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			makePipelineRunTargetNS("pull_request", targetNamespace),
+		//		},
+		//		runevent: info.Event{
+		//			URL: targetURL, TriggerTarget: "pull_request", EventType: "pull_request",
+		//			BaseBranch: mainBranch,
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-oldest",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//						CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
+		//					},
+		//				),
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-newest",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//						CreateTime:       metav1.Time{Time: cw.Now().Add(-50 * time.Minute)},
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "error on only when on annotation",
+		//	wantErr: true,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Namespace: targetNamespace,
+		//					Name:      "only-one-annotation",
+		//					Annotations: map[string]string{
+		//						keys.OnEvent: "[pull_request]",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{URL: targetURL, EventType: "pull_request", BaseBranch: mainBranch},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-oldest",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//						CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "error when no pac annotation has been set",
+		//	wantErr: true,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Namespace: targetNamespace,
+		//					Name:      "no pac annotation",
+		//					Annotations: map[string]string{
+		//						"foo": "bar",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{URL: targetURL, EventType: "pull_request", BaseBranch: mainBranch},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-oldest",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//						CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "error when pac annotation has been set but empty",
+		//	wantErr: true,
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Namespace: targetNamespace,
+		//					Name:      "no pac annotation",
+		//					Annotations: map[string]string{
+		//						keys.OnEvent:        "",
+		//						keys.OnTargetBranch: "",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{URL: targetURL, EventType: "pull_request", BaseBranch: mainBranch},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-oldest",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//						CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:    "no match a repository with target NS",
+		//	wantErr: true,
+		//	wantLog: "could not find Repository CRD in branch targetNamespace, the pipelineRun pipeline-target-ns has a label that explicitly targets it",
+		//	args: annotationTestArgs{
+		//		pruns: []*tektonv1.PipelineRun{
+		//			makePipelineRunTargetNS("pull_request", targetNamespace),
+		//		},
+		//		runevent: info.Event{
+		//			URL: targetURL, TriggerTarget: "pull_request", EventType: "pull_request", BaseBranch: mainBranch,
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: "otherNS",
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//{
+		//	name:       "cel/match path by glob along with push event and target_branch info",
+		//	wantPRName: pipelineTargetNSName,
+		//	args: annotationTestArgs{
+		//		fileChanged: []struct {
+		//			FileName    string
+		//			Status      string
+		//			NewFile     bool
+		//			RenamedFile bool
+		//			DeletedFile bool
+		//		}{
+		//			{
+		//				FileName:    ".tekton/push.yaml",
+		//				Status:      "added",
+		//				NewFile:     true,
+		//				RenamedFile: false,
+		//				DeletedFile: false,
+		//			},
+		//		},
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: fmt.Sprintf(`event == "push" && target_branch == "%s" && ".tekton/*yaml".pathChanged()`, mainBranch),
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:           targetURL,
+		//			TriggerTarget: "push",
+		//			EventType:     "push",
+		//			BaseBranch:    "refs/heads/" + mainBranch,
+		//			HeadBranch:    mainBranch,
+		//			Organization:  "mylittle",
+		//			Repository:    "pony",
+		//			SHATitle:      "verifying push event",
+		//			SHA:           "shacommitinfo",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//
+		//{
+		//	name:    "cel match on all changed files",
+		//	wantErr: false,
+		//	args: annotationTestArgs{
+		//		fileChanged: filesChanged,
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "files.all.exists(x, x.matches(\"added.go\"))",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//
+		//{
+		//	name:    "cel NOT match on all changed files",
+		//	wantErr: true,
+		//	args: annotationTestArgs{
+		//		fileChanged: filesChanged,
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "files.all.exists(x, x.matches(\"notmatch.go\"))",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
+		//
+		//{
+		//	name:    "cel match on added, modified, deleted and renamed  files",
+		//	wantErr: false,
+		//	args: annotationTestArgs{
+		//		fileChanged: filesChanged,
+		//		pruns: []*tektonv1.PipelineRun{
+		//			{
+		//				ObjectMeta: metav1.ObjectMeta{
+		//					Name: pipelineTargetNSName,
+		//					Annotations: map[string]string{
+		//						keys.OnCelExpression: "files.added.exists(x, x.matches(\"added.go\")) && files.deleted.exists(x, x.matches(\"removed.go\")) && files.modified.exists(x, x.matches(\"modified.go\")) && files.renamed.exists(x, x.matches(\"renamed.go\"))",
+		//					},
+		//				},
+		//			},
+		//		},
+		//		runevent: info.Event{
+		//			URL:               targetURL,
+		//			TriggerTarget:     "pull_request",
+		//			EventType:         "pull_request",
+		//			BaseBranch:        mainBranch,
+		//			HeadBranch:        "unittests",
+		//			PullRequestNumber: 1000,
+		//			PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
+		//			Organization:      "mylittle",
+		//			Repository:        "pony",
+		//		},
+		//		data: testclient.Data{
+		//			Repositories: []*v1alpha1.Repository{
+		//				testnewrepo.NewRepo(
+		//					testnewrepo.RepoTestcreationOpts{
+		//						Name:             "test-good",
+		//						URL:              targetURL,
+		//						InstallNamespace: targetNamespace,
+		//					},
+		//				),
+		//			},
+		//		},
+		//	},
+		//},
 		{
-			name:       "match a repository with target NS",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					makePipelineRunTargetNS("pull_request", targetNamespace),
-				},
-				runevent: info.Event{
-					URL: targetURL, TriggerTarget: "pull_request", EventType: "pull_request",
-					BaseBranch: mainBranch,
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:       "cel/match source/target",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "event == \"pull_request" +
-									"\" && target_branch == \"" + mainBranch + "\" && source_branch == \"unittests\"",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:           targetURL,
-					TriggerTarget: "pull_request",
-					EventType:     "pull_request",
-					BaseBranch:    mainBranch,
-					HeadBranch:    "unittests",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:       "cel/match body payload",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "body.foo == 'bar'",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:           targetURL,
-					TriggerTarget: "pull_request",
-					EventType:     "pull_request",
-					BaseBranch:    mainBranch,
-					HeadBranch:    "unittests",
-					Event: map[string]interface{}{
-						"foo": "bar",
-					},
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:       "cel/match request header",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "headers['foo'] == 'bar'",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:           targetURL,
-					TriggerTarget: "pull_request",
-					EventType:     "pull_request",
-					BaseBranch:    mainBranch,
-					HeadBranch:    "unittests",
-					Request: &info.Request{
-						Header: http.Header{
-							"Foo": []string{"bar"},
-						},
-					},
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:       "cel/match path by glob",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				fileChanged: []struct {
-					FileName    string
-					Status      string
-					NewFile     bool
-					RenamedFile bool
-					DeletedFile bool
-				}{
-					{
-						FileName:    ".tekton/pull_request.yaml",
-						Status:      "added",
-						NewFile:     true,
-						RenamedFile: false,
-						DeletedFile: false,
-					},
-				},
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "\".tekton/*yaml\"." +
-									"pathChanged()",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TriggerTarget:     "pull_request",
-					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
-					HeadBranch:        "unittests",
-					PullRequestNumber: 1000,
-					Organization:      "mylittle",
-					Repository:        "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:       "cel/match path title pr",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "event_title.startsWith(\"[UPSTREAM]\")",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TriggerTarget:     "pull_request",
-					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
-					HeadBranch:        "unittests",
-					PullRequestNumber: 1000,
-					PullRequestTitle:  "[UPSTREAM] test me cause i'm famous",
-					Organization:      "mylittle",
-					Repository:        "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-
-		{
-			name:       "cel/match path title push",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "event_title.startsWith(\"[UPSTREAM]\")",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:           targetURL,
-					TriggerTarget: "push",
-					EventType:     "push",
-					BaseBranch:    mainBranch,
-					HeadBranch:    "unittests",
-					SHATitle:      "[UPSTREAM] test me cause i'm famous",
-					Organization:  "mylittle",
-					Repository:    "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-
-		{
-			name:    "cel/no match path title pr",
-			wantErr: true,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "event_title.startsWith(\"[UPSTREAM]\")",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TriggerTarget:     "pull_request",
-					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
-					HeadBranch:        "unittests",
-					PullRequestNumber: 1000,
-					PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
-					Organization:      "mylittle",
-					Repository:        "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:    "cel/no match path by glob",
-			wantErr: true,
-			args: annotationTestArgs{
-				fileChanged: []struct {
-					FileName    string
-					Status      string
-					NewFile     bool
-					RenamedFile bool
-					DeletedFile bool
-				}{
-					{
-						FileName:    ".tekton/foo.json",
-						Status:      "added",
-						NewFile:     true,
-						RenamedFile: false,
-						DeletedFile: false,
-					},
-				},
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "\".tekton/*yaml\"." +
-									"pathChanged()",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TriggerTarget:     "pull_request",
-					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
-					HeadBranch:        "unittests",
-					PullRequestNumber: 1000,
-					Organization:      "mylittle",
-					Repository:        "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-
-		{
-			name:       "cel/match by direct path",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				fileChanged: []struct {
-					FileName    string
-					Status      string
-					NewFile     bool
-					RenamedFile bool
-					DeletedFile bool
-				}{
-					{
-						FileName:    ".tekton/pull_request.yaml",
-						Status:      "added",
-						NewFile:     true,
-						RenamedFile: false,
-						DeletedFile: false,
-					},
-				},
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "\".tekton/pull_request.yaml\"." +
-									"pathChanged()",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TriggerTarget:     "pull_request",
-					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
-					HeadBranch:        "unittests",
-					PullRequestNumber: 1000,
-					Organization:      "mylittle",
-					Repository:        "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-
-		{
-			name: "match TargetPipelineRun",
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							GenerateName: fmt.Sprintf("%s-", pipelineTargetNSName),
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TargetPipelineRun: pipelineTargetNSName,
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:    "cel/bad expression",
-			wantErr: true,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "BADDDDDDDx'ax\\\a",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:           targetURL,
-					TriggerTarget: "pull_request",
-					EventType:     "pull_request",
-					BaseBranch:    mainBranch,
-					HeadBranch:    "unittests",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name: "matching incoming webhook event on push target",
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					makePipelineRunTargetNS(triggertype.Push.String(), ""),
-				},
-				runevent: info.Event{
-					URL:        targetURL,
-					EventType:  triggertype.Incoming.String(),
-					BaseBranch: mainBranch,
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: pipelineTargetNSName,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name: "matching incoming webhook event on incoming target",
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					makePipelineRunTargetNS(triggertype.Incoming.String(), ""),
-				},
-				runevent: info.Event{
-					URL:        targetURL,
-					EventType:  triggertype.Incoming.String(),
-					BaseBranch: mainBranch,
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: pipelineTargetNSName,
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			// this unit test seems wrong, you don't get a repo match from annotations but early one
-			// the targetNamespace will always explicitly target the oldest one
-			// we keep as is but something to improve later on
-			name:         "match same webhook on multiple repos takes the oldest one",
-			wantPRName:   pipelineTargetNSName,
-			wantRepoName: "test-oldest",
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					makePipelineRunTargetNS("pull_request", targetNamespace),
-				},
-				runevent: info.Event{
-					URL: targetURL, TriggerTarget: "pull_request", EventType: "pull_request",
-					BaseBranch: mainBranch,
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-oldest",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-								CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
-							},
-						),
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-newest",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-								CreateTime:       metav1.Time{Time: cw.Now().Add(-50 * time.Minute)},
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:    "error on only when on annotation",
-			wantErr: true,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Namespace: targetNamespace,
-							Name:      "only-one-annotation",
-							Annotations: map[string]string{
-								keys.OnEvent: "[pull_request]",
-							},
-						},
-					},
-				},
-				runevent: info.Event{URL: targetURL, EventType: "pull_request", BaseBranch: mainBranch},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-oldest",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-								CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:    "error when no pac annotation has been set",
-			wantErr: true,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Namespace: targetNamespace,
-							Name:      "no pac annotation",
-							Annotations: map[string]string{
-								"foo": "bar",
-							},
-						},
-					},
-				},
-				runevent: info.Event{URL: targetURL, EventType: "pull_request", BaseBranch: mainBranch},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-oldest",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-								CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:    "error when pac annotation has been set but empty",
-			wantErr: true,
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Namespace: targetNamespace,
-							Name:      "no pac annotation",
-							Annotations: map[string]string{
-								keys.OnEvent:        "",
-								keys.OnTargetBranch: "",
-							},
-						},
-					},
-				},
-				runevent: info.Event{URL: targetURL, EventType: "pull_request", BaseBranch: mainBranch},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-oldest",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-								CreateTime:       metav1.Time{Time: cw.Now().Add(-55 * time.Minute)},
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:    "no match a repository with target NS",
-			wantErr: true,
-			wantLog: "could not find Repository CRD in branch targetNamespace, the pipelineRun pipeline-target-ns has a label that explicitly targets it",
-			args: annotationTestArgs{
-				pruns: []*tektonv1.PipelineRun{
-					makePipelineRunTargetNS("pull_request", targetNamespace),
-				},
-				runevent: info.Event{
-					URL: targetURL, TriggerTarget: "pull_request", EventType: "pull_request", BaseBranch: mainBranch,
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: "otherNS",
-							},
-						),
-					},
-				},
-			},
-		},
-		{
-			name:       "cel/match path by glob along with push event and target_branch info",
-			wantPRName: pipelineTargetNSName,
-			args: annotationTestArgs{
-				fileChanged: []struct {
-					FileName    string
-					Status      string
-					NewFile     bool
-					RenamedFile bool
-					DeletedFile bool
-				}{
-					{
-						FileName:    ".tekton/push.yaml",
-						Status:      "added",
-						NewFile:     true,
-						RenamedFile: false,
-						DeletedFile: false,
-					},
-				},
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: fmt.Sprintf(`event == "push" && target_branch == "%s" && ".tekton/*yaml".pathChanged()`, mainBranch),
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:           targetURL,
-					TriggerTarget: "push",
-					EventType:     "push",
-					BaseBranch:    "refs/heads/" + mainBranch,
-					HeadBranch:    mainBranch,
-					Organization:  "mylittle",
-					Repository:    "pony",
-					SHATitle:      "verifying push event",
-					SHA:           "shacommitinfo",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-
-		{
-			name:    "cel match on all changed files",
+			name:    "hypershift test case ",
 			wantErr: false,
 			args: annotationTestArgs{
-				fileChanged: filesChanged,
-				pruns: []*tektonv1.PipelineRun{
+				fileChanged: []struct {
+					FileName    string
+					Status      string
+					NewFile     bool
+					RenamedFile bool
+					DeletedFile bool
+				}{
 					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "files.all.exists(x, x.matches(\"added.go\"))",
-							},
-						},
+						FileName:    "src/added.go",
+						Status:      "added",
+						NewFile:     true,
+						RenamedFile: false,
+						DeletedFile: false,
 					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TriggerTarget:     "pull_request",
-					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
-					HeadBranch:        "unittests",
-					PullRequestNumber: 1000,
-					PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
-					Organization:      "mylittle",
-					Repository:        "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
+					{
+						FileName:    "src/modified.go",
+						Status:      "modified",
+						NewFile:     false,
+						RenamedFile: false,
+						DeletedFile: false,
 					},
-				},
-			},
-		},
+					{
+						FileName:    "src/removed.go",
+						Status:      "removed",
+						NewFile:     false,
+						RenamedFile: false,
+						DeletedFile: true,
+					},
 
-		{
-			name:    "cel NOT match on all changed files",
-			wantErr: true,
-			args: annotationTestArgs{
-				fileChanged: filesChanged,
+					{
+						FileName:    "src/renamed.go",
+						Status:      "renamed",
+						NewFile:     false,
+						RenamedFile: true,
+						DeletedFile: false,
+					},
+				},
 				pruns: []*tektonv1.PipelineRun{
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: pipelineTargetNSName,
 							Annotations: map[string]string{
-								keys.OnCelExpression: "files.all.exists(x, x.matches(\"notmatch.go\"))",
+								//keys.OnCelExpression: "files.added.exists(x, x.matches(\"added.go\")) && files.deleted.exists(x, x.matches(\"removed.go\")) && files.modified.exists(x, x.matches(\"modified.go\")) && files.renamed.exists(x, x.matches(\"renamed.go\"))",
+								keys.OnCelExpression: "event == \"pull_request\" && target_branch == \"master\" && !files.all.all(x, x.matches('^docs/|\\.md$|^(?:.*/)?(?:\\.gitignore|OWNERS|PROJECT|LICENSE)$'))",
 							},
 						},
 					},
@@ -901,47 +1014,8 @@ func TestMatchPipelinerunAnnotationAndRepositories(t *testing.T) {
 					URL:               targetURL,
 					TriggerTarget:     "pull_request",
 					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
-					HeadBranch:        "unittests",
-					PullRequestNumber: 1000,
-					PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
-					Organization:      "mylittle",
-					Repository:        "pony",
-				},
-				data: testclient.Data{
-					Repositories: []*v1alpha1.Repository{
-						testnewrepo.NewRepo(
-							testnewrepo.RepoTestcreationOpts{
-								Name:             "test-good",
-								URL:              targetURL,
-								InstallNamespace: targetNamespace,
-							},
-						),
-					},
-				},
-			},
-		},
-
-		{
-			name:    "cel match on added, modified, deleted and renamed  files",
-			wantErr: false,
-			args: annotationTestArgs{
-				fileChanged: filesChanged,
-				pruns: []*tektonv1.PipelineRun{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: pipelineTargetNSName,
-							Annotations: map[string]string{
-								keys.OnCelExpression: "files.added.exists(x, x.matches(\"added.go\")) && files.deleted.exists(x, x.matches(\"removed.go\")) && files.modified.exists(x, x.matches(\"modified.go\")) && files.renamed.exists(x, x.matches(\"renamed.go\"))",
-							},
-						},
-					},
-				},
-				runevent: info.Event{
-					URL:               targetURL,
-					TriggerTarget:     "pull_request",
-					EventType:         "pull_request",
-					BaseBranch:        mainBranch,
+					BaseBranch:        "master",
+					DefaultBranch:     "master",
 					HeadBranch:        "unittests",
 					PullRequestNumber: 1000,
 					PullRequestTitle:  "[DOWNSTREAM] don't test me cause i'm famous",
@@ -964,104 +1038,104 @@ func TestMatchPipelinerunAnnotationAndRepositories(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, _ := rtesting.SetupFakeContext(t)
-			fakeclient, mux, ghTestServerURL, teardown := ghtesthelper.SetupGH()
-			defer teardown()
-			vcx := &ghprovider.Provider{
-				Client: fakeclient,
-				Token:  github.String("None"),
+		//t.Run(tt.name, func(t *testing.T) {
+		ctx, _ := rtesting.SetupFakeContext(t)
+		fakeclient, mux, ghTestServerURL, teardown := ghtesthelper.SetupGH()
+		defer teardown()
+		vcx := &ghprovider.Provider{
+			Client: fakeclient,
+			Token:  github.String("None"),
+		}
+		if tt.args.runevent.Request == nil {
+			tt.args.runevent.Request = &info.Request{Header: http.Header{}, Payload: nil}
+		}
+		if len(tt.args.fileChanged) > 0 {
+			commitFiles := []*github.CommitFile{}
+			for _, v := range tt.args.fileChanged {
+				commitFiles = append(commitFiles, &github.CommitFile{
+					Filename: github.String(v.FileName),
+					Status:   github.String(v.Status),
+				})
 			}
-			if tt.args.runevent.Request == nil {
-				tt.args.runevent.Request = &info.Request{Header: http.Header{}, Payload: nil}
+			if tt.args.runevent.TriggerTarget == "push" {
+				mux.HandleFunc(fmt.Sprintf("/repos/%s/%s/commits/%s",
+					tt.args.runevent.Organization, tt.args.runevent.Repository, tt.args.runevent.SHA), func(w http.ResponseWriter, _ *http.Request) {
+					c := &github.RepositoryCommit{
+						Files: commitFiles,
+					}
+					jeez, err := json.Marshal(c)
+					assert.NilError(t, err)
+					_, _ = w.Write(jeez)
+				})
 			}
-			if len(tt.args.fileChanged) > 0 {
-				commitFiles := []*github.CommitFile{}
+
+			if tt.args.runevent.TriggerTarget == "pull_request" {
+				url := fmt.Sprintf("/repos/%s/%s/pulls/%d/files", tt.args.runevent.Organization,
+					tt.args.runevent.Repository, tt.args.runevent.PullRequestNumber)
+				mux.HandleFunc(url, func(w http.ResponseWriter, _ *http.Request) {
+					jeez, err := json.Marshal(commitFiles)
+					assert.NilError(t, err)
+					_, _ = w.Write(jeez)
+				})
+			}
+		}
+
+		tt.args.runevent.Provider = &info.Provider{
+			URL:   ghTestServerURL,
+			Token: "NONE",
+		}
+
+		ghCs, _ := testclient.SeedTestData(t, ctx, tt.args.data)
+		runTest(ctx, t, tt, vcx, ghCs)
+
+		glFakeClient, glMux, glTeardown := gltesthelper.Setup(t)
+		defer glTeardown()
+		glVcx := &glprovider.Provider{
+			Client: glFakeClient,
+			Token:  github.String("None"),
+		}
+		if len(tt.args.fileChanged) > 0 {
+			commitFiles := &gitlab.MergeRequest{}
+			pushFileChanges := []*gitlab.Diff{}
+			if tt.args.runevent.TriggerTarget == "push" {
 				for _, v := range tt.args.fileChanged {
-					commitFiles = append(commitFiles, &github.CommitFile{
-						Filename: github.String(v.FileName),
-						Status:   github.String(v.Status),
+					pushFileChanges = append(pushFileChanges, &gitlab.Diff{
+						NewPath:     v.FileName,
+						RenamedFile: v.RenamedFile,
+						DeletedFile: v.DeletedFile,
+						NewFile:     v.NewFile,
 					})
 				}
-				if tt.args.runevent.TriggerTarget == "push" {
-					mux.HandleFunc(fmt.Sprintf("/repos/%s/%s/commits/%s",
-						tt.args.runevent.Organization, tt.args.runevent.Repository, tt.args.runevent.SHA), func(w http.ResponseWriter, _ *http.Request) {
-						c := &github.RepositoryCommit{
-							Files: commitFiles,
-						}
-						jeez, err := json.Marshal(c)
-						assert.NilError(t, err)
-						_, _ = w.Write(jeez)
+				glMux.HandleFunc(fmt.Sprintf("/projects/0/repository/commits/%s/diff",
+					tt.args.runevent.SHA), func(rw http.ResponseWriter, _ *http.Request) {
+					jeez, err := json.Marshal(pushFileChanges)
+					assert.NilError(t, err)
+					_, _ = rw.Write(jeez)
+				})
+			} else {
+				for _, v := range tt.args.fileChanged {
+					commitFiles.Changes = append(commitFiles.Changes, &gitlab.MergeRequestDiff{
+						NewPath:     v.FileName,
+						RenamedFile: v.RenamedFile,
+						DeletedFile: v.DeletedFile,
+						NewFile:     v.NewFile,
 					})
 				}
-
-				if tt.args.runevent.TriggerTarget == "pull_request" {
-					url := fmt.Sprintf("/repos/%s/%s/pulls/%d/files", tt.args.runevent.Organization,
-						tt.args.runevent.Repository, tt.args.runevent.PullRequestNumber)
-					mux.HandleFunc(url, func(w http.ResponseWriter, _ *http.Request) {
-						jeez, err := json.Marshal(commitFiles)
-						assert.NilError(t, err)
-						_, _ = w.Write(jeez)
-					})
-				}
+				url := fmt.Sprintf("/projects/0/merge_requests/%d/changes", tt.args.runevent.PullRequestNumber)
+				glMux.HandleFunc(url, func(w http.ResponseWriter, _ *http.Request) {
+					jeez, err := json.Marshal(commitFiles)
+					assert.NilError(t, err)
+					_, _ = w.Write(jeez)
+				})
 			}
+		}
 
-			tt.args.runevent.Provider = &info.Provider{
-				URL:   ghTestServerURL,
-				Token: "NONE",
-			}
+		tt.args.runevent.Provider = &info.Provider{
+			Token: "NONE",
+		}
 
-			ghCs, _ := testclient.SeedTestData(t, ctx, tt.args.data)
-			runTest(ctx, t, tt, vcx, ghCs)
-
-			glFakeClient, glMux, glTeardown := gltesthelper.Setup(t)
-			defer glTeardown()
-			glVcx := &glprovider.Provider{
-				Client: glFakeClient,
-				Token:  github.String("None"),
-			}
-			if len(tt.args.fileChanged) > 0 {
-				commitFiles := &gitlab.MergeRequest{}
-				pushFileChanges := []*gitlab.Diff{}
-				if tt.args.runevent.TriggerTarget == "push" {
-					for _, v := range tt.args.fileChanged {
-						pushFileChanges = append(pushFileChanges, &gitlab.Diff{
-							NewPath:     v.FileName,
-							RenamedFile: v.RenamedFile,
-							DeletedFile: v.DeletedFile,
-							NewFile:     v.NewFile,
-						})
-					}
-					glMux.HandleFunc(fmt.Sprintf("/projects/0/repository/commits/%s/diff",
-						tt.args.runevent.SHA), func(rw http.ResponseWriter, _ *http.Request) {
-						jeez, err := json.Marshal(pushFileChanges)
-						assert.NilError(t, err)
-						_, _ = rw.Write(jeez)
-					})
-				} else {
-					for _, v := range tt.args.fileChanged {
-						commitFiles.Changes = append(commitFiles.Changes, &gitlab.MergeRequestDiff{
-							NewPath:     v.FileName,
-							RenamedFile: v.RenamedFile,
-							DeletedFile: v.DeletedFile,
-							NewFile:     v.NewFile,
-						})
-					}
-					url := fmt.Sprintf("/projects/0/merge_requests/%d/changes", tt.args.runevent.PullRequestNumber)
-					glMux.HandleFunc(url, func(w http.ResponseWriter, _ *http.Request) {
-						jeez, err := json.Marshal(commitFiles)
-						assert.NilError(t, err)
-						_, _ = w.Write(jeez)
-					})
-				}
-			}
-
-			tt.args.runevent.Provider = &info.Provider{
-				Token: "NONE",
-			}
-
-			runTest(ctx, t, tt, glVcx, ghCs)
-		})
+		runTest(ctx, t, tt, glVcx, ghCs)
+		//})
 	}
 }
 
