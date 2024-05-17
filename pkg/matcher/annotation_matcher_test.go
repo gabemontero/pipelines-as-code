@@ -1005,7 +1005,7 @@ func TestMatchPipelinerunAnnotationAndRepositories(t *testing.T) {
 							Name: pipelineTargetNSName,
 							Annotations: map[string]string{
 								//keys.OnCelExpression: "files.added.exists(x, x.matches(\"added.go\")) && files.deleted.exists(x, x.matches(\"removed.go\")) && files.modified.exists(x, x.matches(\"modified.go\")) && files.renamed.exists(x, x.matches(\"renamed.go\"))",
-								keys.OnCelExpression: "event == \"pull_request\" && target_branch == \"master\" && !files.all.all(x, x.matches('^docs/|\\.md$|^(?:.*/)?(?:\\.gitignore|OWNERS|PROJECT|LICENSE)$'))",
+								keys.OnCelExpression: "event == \"pull_request\" && target_branch == \"master\" && !files.all.all(x, x.matches(^docs/|\\.md$|^(?:.*/)?(?:\\.gitignore|OWNERS|PROJECT|LICENSE)$'))",
 							},
 						},
 					},
@@ -1074,7 +1074,9 @@ func TestMatchPipelinerunAnnotationAndRepositories(t *testing.T) {
 					tt.args.runevent.Repository, tt.args.runevent.PullRequestNumber)
 				mux.HandleFunc(url, func(w http.ResponseWriter, _ *http.Request) {
 					jeez, err := json.Marshal(commitFiles)
-					assert.NilError(t, err)
+					if err != nil {
+						t.Fatalf("%s", err.Error())
+					}
 					_, _ = w.Write(jeez)
 				})
 			}
@@ -1159,7 +1161,9 @@ func runTest(ctx context.Context, t *testing.T, tt annotationTest, vcx provider.
 	}
 
 	if !tt.wantErr {
-		assert.NilError(t, err)
+		if err != nil {
+			t.Fatalf("%s", err.Error())
+		}
 	}
 
 	if tt.wantRepoName != "" {
